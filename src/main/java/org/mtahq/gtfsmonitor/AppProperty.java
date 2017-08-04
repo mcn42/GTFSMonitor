@@ -12,7 +12,7 @@ package org.mtahq.gtfsmonitor;
 public enum AppProperty {
     BASE_GTFS_URL_PATTERN("http://datamine.mta.info/mta_esi.php?key=%s&feed_id=%s"),
     GTFS_POLLING_PERIOD("30000"),
-    GTFS_AUTHORIZATION_KEY_NYCT("a7434867b3b9521f601f610d001b889e"),
+    GTFS_AUTHORIZATION_KEY_NYCT("<Insert valid auth key here>"),
     GTFS_AUTHORIZATION_KEY_MNR(""),
     LOG_DIRECTORY("logs");
     
