@@ -18,14 +18,18 @@ import java.util.logging.Logger;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JTable;
+import javax.swing.ListModel;
 import javax.swing.SwingConstants;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 import org.mtahq.gtfsmonitor.GTFSMonitor;
+import org.mtahq.gtfsmonitor.Log;
 import org.mtahq.gtfsmonitor.Main;
 import org.mtahq.gtfsmonitor.Utils;
 
@@ -37,13 +41,16 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
     private static GTFSMonitor gm = null;
     private static String configPath = ".";
     private Throbber throb = null;
+    private FeedListModel model = new FeedListModel();
+    private JList<FeedStatus> jlFeeds = new JList<>();
     
     /**
      * Creates new form MonitorApp
      */
     public MonitorApp() {
         initComponents();
-        
+        gm = GTFSMonitor.getInstance();
+        gm.addFeedStatusListener(this);
     }
 
     /**
@@ -61,7 +68,6 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
         jLabel1 = new javax.swing.JLabel();
         jPanel2 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
-        dataTable = new javax.swing.JTable();
         jPanel4 = new javax.swing.JPanel();
         runToggleButton = new javax.swing.JToggleButton();
         jLabel2 = new javax.swing.JLabel();
@@ -103,10 +109,6 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
         getContentPane().add(jPanel1, gridBagConstraints);
 
         jPanel2.setLayout(new java.awt.GridBagLayout());
-
-        dataTable.setModel(new GtfsTableModel());
-        jScrollPane1.setViewportView(dataTable);
-
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
         gridBagConstraints.weightx = 1.0;
@@ -211,9 +213,10 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
         if(this.runToggleButton.isSelected())
         {
             //  Clear table
-            GtfsTableModel tm = (GtfsTableModel) this.dataTable.getModel();
-            tm.setData(new ArrayList());
+            //GtfsTableModel tm = (GtfsTableModel) this.dataTable.getModel();
+            //tm.setData(new ArrayList());
             //  Clear Update field
+            this.model.setList(new ArrayList<>());
             this.jtfUpdate.setText("");
             this.runToggleButton.setText("Stop");
             this.gm.start();
@@ -235,7 +238,6 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
         Logger.getLogger(Main.class.getCanonicalName()).log(Level.INFO, "Setting Time Zone: {0}", TimeZone.getDefault().getDisplayName());
         
         Utils.config(configPath);
-        gm = new GTFSMonitor();
         
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
@@ -264,7 +266,7 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 MonitorApp ma = new MonitorApp();
-                gm.addFeedStatusListener(ma);
+                
                 ma.myInit();
                 ma.setVisible(true);
             }
@@ -276,29 +278,33 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
         this.throb = new Throbber(this.lblThrob);
         this.setPreferredSize(new Dimension(1000,600));
         this.setMinimumSize(new Dimension(1000,600));
-        this.dataTable.setRowHeight(35);
-        Font f = this.dataTable.getFont();
-        f = f.deriveFont(14.0f);
-        this.dataTable.setFont(f);
-        this.dataTable.getColumnModel().getColumn(0).setCellRenderer(new BallCellRenderer());
-        
-        this.dataTable.getColumnModel().getColumn(0).setMaxWidth(75);
-        this.dataTable.getColumnModel().getColumn(1).setMaxWidth(150);
-        this.dataTable.getColumnModel().getColumn(2).setMaxWidth(175);
-        this.dataTable.getColumnModel().getColumn(3).setMaxWidth(75);
-        this.dataTable.getColumnModel().getColumn(4).setMaxWidth(75);
-        this.dataTable.getColumnModel().getColumn(5).setMaxWidth(75);
-        this.dataTable.getColumnModel().getColumn(0).setMinWidth(75);
-        this.dataTable.getColumnModel().getColumn(1).setMinWidth(150);
-        this.dataTable.getColumnModel().getColumn(2).setMinWidth(175);
-        this.dataTable.getColumnModel().getColumn(3).setMinWidth(75);
-        this.dataTable.getColumnModel().getColumn(4).setMinWidth(75);
-        this.dataTable.getColumnModel().getColumn(5).setMinWidth(75);
+        this.model.setList(new ArrayList<>());
+        this.jScrollPane1.add(this.jlFeeds);
+        this.jlFeeds.setCellRenderer(new FeedPanel());
+        this.jlFeeds.setModel(model);
+        this.jlFeeds.setVisible(true);
+//        this.dataTable.setRowHeight(35);
+//        Font f = this.dataTable.getFont();
+//        f = f.deriveFont(14.0f);
+//        this.dataTable.setFont(f);
+//        this.dataTable.getColumnModel().getColumn(0).setCellRenderer(new BallCellRenderer());
+//        
+//        this.dataTable.getColumnModel().getColumn(0).setMaxWidth(75);
+//        this.dataTable.getColumnModel().getColumn(1).setMaxWidth(150);
+//        this.dataTable.getColumnModel().getColumn(2).setMaxWidth(175);
+//        this.dataTable.getColumnModel().getColumn(3).setMaxWidth(75);
+//        this.dataTable.getColumnModel().getColumn(4).setMaxWidth(75);
+//        this.dataTable.getColumnModel().getColumn(5).setMaxWidth(75);
+//        this.dataTable.getColumnModel().getColumn(0).setMinWidth(75);
+//        this.dataTable.getColumnModel().getColumn(1).setMinWidth(150);
+//        this.dataTable.getColumnModel().getColumn(2).setMinWidth(175);
+//        this.dataTable.getColumnModel().getColumn(3).setMinWidth(75);
+//        this.dataTable.getColumnModel().getColumn(4).setMinWidth(75);
+//        this.dataTable.getColumnModel().getColumn(5).setMinWidth(75);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenuItem aboutMenuItem;
-    private javax.swing.JTable dataTable;
     private javax.swing.JMenuItem exitMenuItem;
     private javax.swing.JMenu fileMenu;
     private javax.swing.JMenu helpMenu;
@@ -318,9 +324,12 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
     private static final DateFormat timeFormat = DateFormat.getTimeInstance(DateFormat.LONG);
     @Override
     public void updateListData(List<FeedStatus> list) {
-        GtfsTableModel tm = (GtfsTableModel) this.dataTable.getModel();
-        tm.setData(list);
+        Log.getLog().log(Level.INFO, "updateListData count {0}", list.size());
+        this.model.setList(list);
+        this.jlFeeds.setListData(list.toArray(new FeedStatus[list.size()]));
         this.jtfUpdate.setText(timeFormat.format(new Date()));
+        this.jlFeeds.invalidate();
+        
     }
 
     private static class GtfsTableModel implements TableModel {
@@ -425,6 +434,47 @@ public class MonitorApp extends javax.swing.JFrame implements FeedStatusListener
             this.listeners.forEach((l) -> {
                 l.tableChanged(tme);
             });
+        }
+        
+    }
+    
+    private static class FeedListModel implements ListModel<FeedStatus> {
+        private List<FeedStatus> feeds = null;
+        private List<ListDataListener> listeners = new ArrayList<>();
+        
+        @Override
+        public int getSize() {
+            return feeds == null?0:feeds.size();
+        }
+
+        @Override
+        public FeedStatus getElementAt(int index) {
+            return feeds == null?null:feeds.get(index);
+        }
+
+        @Override
+        public void addListDataListener(ListDataListener l) {
+            listeners.add(l);
+        }
+
+        @Override
+        public void removeListDataListener(ListDataListener l) {
+            listeners.remove(l);
+        }
+
+        public List<FeedStatus> getList() {
+            return feeds;
+        }
+
+        public void setList(List<FeedStatus> list) {
+            Log.getLog().log(Level.INFO, "List model count {0}", list.size());
+            this.feeds = list;
+            this.fireDataChanged();
+        }
+        
+        private void fireDataChanged() {
+            ListDataEvent e = new ListDataEvent(this, ListDataEvent.CONTENTS_CHANGED, 0, feeds.size());
+            this.listeners.forEach((l) -> l.contentsChanged(e));
         }
         
     }
