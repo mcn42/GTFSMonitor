@@ -5,6 +5,7 @@
 package org.mtahq.gtfsmonitor;
 
 import com.google.transit.realtime.GtfsRealtime;
+import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -20,16 +21,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.mtahq.gtfsmonitor.gui.FeedStatus;
 import org.mtahq.gtfsmonitor.gui.FeedStatusListener;
+import org.mtahq.gtfsmonitor.gui.FeedSummary;
 
 /**
  *
  * @author mnilsen
  */
 public class GTFSMonitor {
-
+    private static final GTFSMonitor instance = new GTFSMonitor();
+    
     private final long pollingPeriod = Utils.getAppProperties().getLong(AppProperty.GTFS_POLLING_PERIOD);
     private ScheduledExecutorService executor = null;
     private final String urlPattern = Utils.getAppProperties().get(AppProperty.BASE_GTFS_URL_PATTERN);
@@ -42,10 +44,15 @@ public class GTFSMonitor {
     private Long lastReading = null;
     private Long lastTimestamp = null;
     private List<FeedStatus> feedData = null;
+    private Map<String,FeedSummary> feedSummaries = new HashMap<>();
     private final List<FeedStatusListener> listeners = new ArrayList<>();
 
-    public GTFSMonitor() {
+    private GTFSMonitor() {
         this.buildMap();
+    }
+
+    public static GTFSMonitor getInstance() {
+        return instance;
     }
 
     private void buildMap() {
@@ -61,6 +68,7 @@ public class GTFSMonitor {
     
     public void addFeedStatusListener(FeedStatusListener l)
     {
+        Log.getLog().info("Adding FeedStatusListener " + l.toString());
         this.listeners.add(l);
     }
     
@@ -94,6 +102,7 @@ public class GTFSMonitor {
         }
         sb.append("-----------------------------------------------------");
         Log.getLog().info(sb.toString());
+        Log.getLog().log(Level.INFO, "Event Feed count {0}", this.feedData.size());
         Collections.sort(this.feedData);
         this.listeners.forEach((l) -> {
             l.updateListData(this.feedData);
@@ -132,6 +141,10 @@ public class GTFSMonitor {
             res = msg;
             fs = new FeedStatus(feed,this.lastTimestamp,entityCount,size,age);
             this.feedData.add(fs);
+            
+//            FeedSummary summ = this.generateFeedSummary(fm,feed.name());
+//            Log.getLog().info(summ.toString());
+            
         } catch (IOException ex) {
             String msg = String.format("%s - Feed retrieval error: %s\n", feed, ex.getLocalizedMessage());
             Log.getLog().severe(msg);
@@ -142,6 +155,15 @@ public class GTFSMonitor {
         }
         
         return res;
+    }
+    
+    private FeedSummary generateFeedSummary(GtfsRealtime.FeedMessage fm,String feedId) {
+        List<FeedEntity> list = fm.getEntityList();
+        FeedSummary summ = new FeedSummary(feedId);
+        list.stream().filter((fe) -> (fe.hasTripUpdate())).forEachOrdered((fe) -> {
+            summ.addTripUpdate(fe.getTripUpdate());
+        });
+        return summ;
     }
 
     private float getAge(long timestamp) {

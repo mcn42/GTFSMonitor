@@ -37,7 +37,7 @@ public class Main {
         Logger.getLogger(Main.class.getCanonicalName()).log(Level.INFO, "Setting Time Zone: {0}", TimeZone.getDefault().getDisplayName());
         
         Utils.config(configPath);
-        gm = new GTFSMonitor();
+        gm = GTFSMonitor.getInstance();
         gm.start();
     }
     
